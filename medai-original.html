@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MED.AI 3.0 - Copiloto Clínico & Triagem Inteligente SUS</title>
+    <style>
+        :root {
+            --bg-dark: #060913;
+            --panel-bg: rgba(15, 23, 42, 0.85);
+            --border-color: rgba(0, 240, 255, 0.25);
+            --primary-cyan: #00f0ff;
+            --primary-green: #00ff88;
+            --primary-blue: #0088ff;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            
+            /* Protocolo Internacional de Manchester - Padrão SUS */
+            --man-red: #ff2a2a;
+            --man-orange: #ff8c00;
+            --man-yellow: #ffd000;
+            --man-green: #00e676;
+            --man-blue: #2979ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 85% 85%, rgba(0, 255, 136, 0.08) 0%, transparent 45%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        /* Cabeçalho */
+        header {
+            background: rgba(6, 9, 19, 0.92);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-cyan), var(--primary-green));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #050811;
+            font-weight: 900;
+            font-size: 24px;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.45);
+        }
+
+        .logo-text h1 {
+            font-size: 1.35rem;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sus-badge {
+            font-size: 0.7rem;
+            color: var(--primary-cyan);
+            border: 1px solid var(--primary-cyan);
+            background: rgba(0, 240, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        nav {
+            display: flex;
+            gap: 12px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-main);
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .nav-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: rgba(0, 240, 255, 0.5);
+        }
+
+        .nav-btn.active {
+            background: rgba(0, 240, 255, 0.18);
+            border-color: var(--primary-cyan);
+            color: var(--primary-cyan);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+        }
+
+        /* Layout Principal */
+        main {
+            flex: 1;
+            padding: 24px;
+            max-width: 1480px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: grid;
+            gap: 24px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Grid Triagem */
+        #triagem-tab {
+            grid-template-columns: 440px 1fr;
+            align-items: start;
+        }
+
+        @media (max-width: 1024px) {
+            #triagem-tab {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 22px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary-cyan);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 12px;
+        }
+
+        /* Formulário */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 11px 14px;
+            background: rgba(6, 9, 19, 0.65);
+            border: 1px solid rgba(0, 240, 255, 0.25);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-cyan);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+            background: rgba(6, 9, 19, 0.9);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary-cyan), var(--primary-blue));
+            color: #040711;
+            font-weight: 800;
+            padding: 13px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 8px;
+            font-size: 0.95rem;
+            letter-spacing: 0.3px;
+            transition: all 0.25s;
+            box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 22px rgba(0, 240, 255, 0.5);
+        }
+
+        /* Fila e Cronômetros */
+        .stats-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .stat-pill {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot.red { background: var(--man-red); box-shadow: 0 0 8px var(--man-red); }
+        .dot.orange { background: var(--man-orange); }
+        .dot.yellow { background: var(--man-yellow); }
+        .dot.green { background: var(--man-green); }
+
+        .patient-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .patient-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 6px solid var(--man-green);
+            padding: 16px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+
+        .patient-card.red { border-left-color: var(--man-red); background: rgba(255, 42, 42, 0.06); }
+        .patient-card.orange { border-left-color: var(--man-orange); background: rgba(255, 140, 0, 0.06); }
+        .patient-card.yellow { border-left-color: var(--man-yellow); background: rgba(255, 208, 0, 0.05); }
+        .patient-card.green { border-left-color: var(--man-green); }
+
+        /* Alerta de Estouro de Tempo (SLA) */
+        .patient-card.sla-breached {
+            border: 1px solid var(--man-red);
+            border-left-width: 6px;
+            animation: slaPulse 1.5s infinite;
+        }
+
+        @keyframes slaPulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 42, 42, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 42, 42, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 42, 42, 0); }
+        }
+
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .patient-info h3 {
+            font-size: 1.05rem;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .vitals-tag {
+            font-size: 0.8rem;
+            color: var(--primary-cyan);
+            background: rgba(0, 240, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .badge.red { background: var(--man-red); color: #fff; box-shadow: 0 0 12px rgba(255, 42, 42, 0.5); }
+        .badge.orange { background: var(--man-orange); color: #000; }
+        .badge.yellow { background: var(--man-yellow); color: #000; }
+        .badge.green { background: var(--man-green); color: #000; }
+
+        .ai-diagnosis-box {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(0, 255, 136, 0.25);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+
+        .ai-diagnosis-box strong {
+            color: var(--primary-green);
+        }
+
+        .patient-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 8px;
+        }
+
+        .timer-display {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 0.88rem;
+            color: #fff;
+        }
+
+        .sla-warning {
+            color: var(--man-red);
+            font-weight: bold;
+            display: none;
+        }
+
+        .sla-breached .sla-warning {
+            display: inline;
+        }
+
+        .btn-attend {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            transition: 0.2s;
+        }
+
+        .btn-attend:hover {
+            background: var(--primary-green);
+            color: #000;
+            border-color: var(--primary-green);
+            font-weight: bold;
+        }
+
+        /* Aba Copiloto por Voz (Live Orb) */
+        .voice-hub {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+            gap: 28px;
+            min-height: 520px;
+        }
+
+        .orb-container {
+            position: relative;
+            width: 190px;
+            height: 190px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .orb-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 240, 255, 0.3);
+            animation: spin 8s linear infinite;
+        }
+
+        .orb-ring::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: var(--primary-cyan);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--primary-cyan);
+        }
+
+        .orb-core {
+            width: 135px;
+            height: 135px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #ffffff 0%, var(--primary-cyan) 35%, var(--primary-blue) 75%, #020617 100%);
+            box-shadow: 0 0 45px rgba(0, 240, 255, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.5);
+            animation: orbIdle 3s infinite ease-in-out;
+            transition: all 0.3s ease;
+        }
+
+        .orb-container.speaking .orb-core {
+            background: radial-gradient(circle at 35% 35%, #ffffff 0%, var(--primary-green) 40%, var(--primary-cyan) 80%, #020617 100%);
+            box-shadow: 0 0 70px rgba(0, 255, 136, 0.8), inset 0 0 25px #fff;
+            animation: orbSpeak 0.55s infinite alternate ease-in-out;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes orbIdle {
+            0%, 100% { transform: scale(0.96); }
+            50% { transform: scale(1.04); }
+        }
+
+        @keyframes orbSpeak {
+            0% { transform: scale(1.02); }
+            100% { transform: scale(1.18); }
+        }
+
+        .waveform {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            height: 28px;
+        }
+
+        .wave-bar {
+            width: 4px;
+            height: 6px;
+            background: var(--primary-cyan);
+            border-radius: 2px;
+            transition: height 0.15s ease;
+        }
+
+        .speaking .wave-bar {
+            background: var(--primary-green);
+            animation: waveAnim 0.4s infinite alternate ease-in-out;
+        }
+
+        .speaking .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .speaking .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .speaking .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .speaking .wave-bar:nth-child(5) { animation-delay: 0.15s; }
+
+        @keyframes waveAnim {
+            0% { height: 6px; }
+            100% { height: 26px; }
+        }
+
+        .voice-transcript {
+            background: rgba(6, 9, 19, 0.75);
+            border: 1px solid var(--border-color);
+            padding: 22px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 720px;
+            min-height: 110px;
+            font-size: 1.08rem;
+            line-height: 1.6;
+            color: #f8fafc;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .quick-prompts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-width: 760px;
+        }
+
+        .prompt-chip {
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: var(--text-main);
+            padding: 9px 16px;
+            border-radius: 24px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .prompt-chip:hover {
+            background: var(--primary-cyan);
+            color: #050811;
+            font-weight: 700;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-area">
+            <div class="logo-icon">+</div>
+            <div class="logo-text">
+                <h1>MED.AI <span class="sus-badge">SUS • Copiloto Clínico 3.0</span></h1>
+            </div>
+        </div>
+        <nav>
+            <button class="nav-btn active" id="btn-tab-triagem" onclick="switchTab('triagem')">📋 Triagem Automática IA</button>
+            <button class="nav-btn" id="btn-tab-copiloto" onclick="switchTab('copiloto')">🎙️ Copiloto por Voz (Live)</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- ABA 1: TRIAGEM AUTOMÁTICA POR INTELIGÊNCIA ARTIFICIAL -->
+        <div id="triagem-tab" class="tab-content active">
+            
+            <!-- Painel Esquerdo: Admissão do Paciente -->
+            <div class="card">
+                <div class="card-title">
+                    <span>🩺 Admissão & Análise por IA</span>
+                </div>
+                <form id="triage-form" onsubmit="processarPacienteIA(event)">
+                    <div class="form-group">
+                        <label>Nome Completo do Paciente</label>
+                        <input type="text" id="p-nome" placeholder="Ex: Maria Aparecida Santos" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Idade (anos)</label>
+                            <input type="number" id="p-idade" min="0" max="120" placeholder="Ex: 58" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Pressão Arterial (mmHg)</label>
+                            <input type="text" id="p-pa" placeholder="Ex: 150/90 ou 15/9" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Saturação SpO2 (%)</label>
+                            <input type="number" id="p-spo2" min="50" max="100" placeholder="Ex: 96" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Temperatura (°C)</label>
+                            <input type="number" step="0.1" id="p-temp" placeholder="Ex: 37.2" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Quadro Clínico / Sintomas Relatados</label>
+                        <textarea id="p-sintomas" rows="3" placeholder="Descreva os sintomas (ex: dor apertada no peito irradiando para o braço esquerdo, falta de ar, sudorese...)" required></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">🤖 Classificar Risco e Gerar Pré-Diagnóstico</button>
+                </form>
+            </div>
+
+            <!-- Painel Direito: Fila Classificada Automaticamente -->
+            <div class="card">
+                <div class="card-title">
+                    <span>🚨 Fila de Atendimento (Protocolo de Manchester)</span>
+                    <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: normal;">Ordenação automática por gravidade</span>
+                </div>
+
+                <div class="stats-bar">
+                    <div class="stat-pill"><span class="dot red"></span> Vermelho: 0 min</div>
+                    <div class="stat-pill"><span class="dot orange"></span> Laranja: 10 min</div>
+                    <div class="stat-pill"><span class="dot yellow"></span> Amarelo: 60 min</div>
+                    <div class="stat-pill"><span class="dot green"></span> Verde: 120 min</div>
+                </div>
+
+                <div class="patient-list" id="fila-pacientes">
+                </div>
+            </div>
+        </div>
+
+        <div id="copiloto-tab" class="tab-content">
+            <div class="card voice-hub" id="voice-hub-container">
+                <div class="card-title" style="width: 100%; justify-content: center; border: none; margin-bottom: 0;">
+                    🎙️ Assistente Médico de Investigação Clínica (Voz IA)
+                </div>
+
+                <div class="orb-container" id="orb-box" onclick="ativarVozInicial()">
+                    <div class="orb-ring"></div>
+                    <div class="orb-core"></div>
+                </div>
+
+                <div class="waveform" id="waveform-bars">
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                </div>
+
+                <button class="btn-primary" style="width: auto; padding: 12px 28px;" onclick="ativarVozInicial()">
+                    🔊 ATIVAR / OUVIR COPILOTO MED.AI
+                </button>
+
+                <div class="voice-transcript" id="voice-output-text">
+                    Clique na esfera neon ou no botão acima para ativar o sintetizador de voz. Selecione um cenário clínico abaixo para ouvir as perguntas de investigação recomendadas ao médico.
+                </div>
+
+                <div style="width: 100%;">
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                        Protocolos de Investigação Rápida (Clique para a IA falar):
+                    </p>
+                    <div class="quick-prompts">
+                        <button class="prompt-chip" onclick="consultarProtocoloVoz('iam')">🫀 Suspeita de Infarto (IAM)</button>
+                        <button class="prompt-chip" onclick="consultarProtocoloVoz('avc')">🧠 Suspeita de AVC Agudo</button>
+                        <button class="prompt-chip" onclick="consultarProtocoloVoz('sepse')">🦠 Protocolo Sepse / Infecção</button>
+                        <button class="prompt-chip" onclick="consultarProtocoloVoz('dengue')">🦟 Dengue com Sinais de Alarme</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let pacientes = [
+            {
+                id: 1,
+                nome: "Carlos Eduardo Silva",
+                idade: 62,
+                pa: "160/100",
+                spo2: 93,
+                temp: 36.5,
+                sintomas: "Dor torácica opressiva irradiando para o braço esquerdo e sudorese fria há 30 min.",
+                cor: "red",
+                prioridade: "EMERGÊNCIA",
+                slaMinutos: 0,
+                hipotese: "Síndrome Coronariana Aguda / IAM (CID-10: I21)",
+                conduta: "Encaminhar imediatamente à Sala Vermelha. Realizar ECG de 12 derivações em até 10 min e dosar Troponina.",
+                entradaTimestamp: Date.now() - 45000
+            },
+            {
+                id: 2,
+                nome: "Ana Beatriz Oliveira",
+                idade: 47,
+                pa: "190/110",
+                spo2: 97,
+                temp: 36.8,
+                sintomas: "Cefaleia occipital intensa, tontura e visão turva.",
+                cor: "orange",
+                prioridade: "MUITO URGENTE",
+                slaMinutos: 10,
+                hipotese: "Emergência / Urgência Hipertensiva (CID-10: I10)",
+                conduta: "Monitorização multiparamétrica, fundoscopia e avaliação neurológica focal.",
+                entradaTimestamp: Date.now() - 120000
+            },
+            {
+                id: 3,
+                nome: "Marcos Vinícius Lima",
+                idade: 29,
+                pa: "120/80",
+                spo2: 98,
+                temp: 38.9,
+                sintomas: "Febre alta há 2 dias, dor no corpo e dor atrás dos olhos.",
+                cor: "yellow",
+                prioridade: "URGENTE",
+                slaMinutos: 60,
+                hipotese: "Síndrome Febril Aguda / Suspeita de Arbovirose (CID-10: A90)",
+                conduta: "Hidratação oral vigorosa, hemograma completo com contagem de plaquetas e prova do laço.",
+                entradaTimestamp: Date.now() - 300000
+            }
+        ];
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(`${tab}-tab`).classList.add('active');
+            document.getElementById(`btn-tab-${tab}`).classList.add('active');
+        }
+
+        function analisarClinicamente(idade, paStr, spo2, temp, sintomasRaw) {
+            const s = sintomasRaw.toLowerCase();
+            
+            let sistolica = 120;
+            const matchPa = paStr.match(/(\d+)/);
+            if (matchPa) {
+                let val = parseInt(matchPa[1]);
+                sistolica = val < 30 ? val * 10 : val;
+            }
+
+            if (
+                spo2 < 90 ||
+                sistolica >= 220 ||
+                sistolica <= 80 ||
+                s.includes('peito') ||
+                s.includes('infarto') ||
+                s.includes('desmaio') ||
+                s.includes('inconsciente') ||
+                s.includes('parada') ||
+                s.includes('falta de ar grave') ||
+                s.includes('convuls') ||
+                s.includes('boca torta') ||
+                s.includes('nao fala') ||
+                s.includes('não fala')
+            ) {
+                let hipotese = "Emergência Clínica / Risco Iminente de Óbito (CID-10: R57)";
+                let conduta = "Sala Vermelha imediata, acesso venoso calibroso, oxigenoterapia e monitorização contínua.";
+
+                if (s.includes('peito') || s.includes('infarto')) {
+                    hipotese = "Síndrome Coronariana Aguda / Suspeita de IAM (CID-10: I21)";
+                    conduta = "ECG em até 10 min, AAS 300mg (se sem contraindicação), Troponina e monitorização cardíaca.";
+                } else if (s.includes('boca torta') || s.includes('fala')) {
+                    hipotese = "Acidente Vascular Cerebral Agudo - AVC (CID-10: I64)";
+                    conduta = "Ativar Protocolo AVC, Tomografia de Crânio imediata e glicemia capilar.";
+                }
+
+                return { cor: "red", prioridade: "EMERGÊNCIA", slaMinutos: 0, hipotese, conduta, peso: 1 };
+            }
+
+            if (
+                spo2 <= 93 ||
+                sistolica >= 180 ||
+                temp >= 39.5 ||
+                s.includes('falta de ar') ||
+                s.includes('tontura forte') ||
+                s.includes('dor muito forte') ||
+                s.includes('hemorragia') ||
+                s.includes('sangramento')
+            ) {
+                let hipotese = "Quadro Agudo Grave / Instabilidade Potencial (CID-10: R52)";
+                let conduta = "Avaliação médica em até 10 minutos, sinais vitais seriados e exames laboratoriais de urgência.";
+
+                if (sistolica >= 180) {
+                    hipotese = "Crise Hipertensiva Grave (CID-10: I10)";
+                    conduta = "Repouso em ambiente calmo, reavaliação da PA e pesquisa de lesão de órgão-alvo.";
+                }
+
+                return { cor: "orange", prioridade: "MUITO URGENTE", slaMinutos: 10, hipotese, conduta, peso: 2 };
+            }
+
+            if (
+                temp >= 37.8 ||
+                sistolica >= 150 ||
+                s.includes('febre') ||
+                s.includes('vomito') ||
+                s.includes('vômito') ||
+                s.includes('dor abdominal') ||
+                s.includes('dor de cabeca') ||
+                s.includes('dor de cabeça') ||
+                s.includes('dor nos olhos') ||
+                s.includes('fratura')
+            ) {
+                let hipotese = "Condição Aguda Moderada (CID-10: R50.9)";
+                let conduta = "Medicação sintomática, hidratação e exames complementares conforme avaliação médica.";
+
+                if (s.includes('febre') && (s.includes('olhos') || s.includes('corpo'))) {
+                    hipotese = "Suspeita de Dengue / Arbovirose (CID-10: A90)";
+                    conduta = "Hidratação imediata, hemograma com plaquetas e pesquisa de sinais de alarme.";
+                }
+
+                return { cor: "yellow", prioridade: "URGENTE", slaMinutos: 60, hipotese, conduta, peso: 3 };
+            }
+
+            return {
+                cor: "green",
+                prioridade: "POUCO URGENTE",
+                slaMinutos: 120,
+                hipotese: "Quadro Leve / Atendimento Ambulatorial (CID-10: Z00)",
+                conduta: "Aguardar consulta por ordem de chegada, orientações gerais e sintomáticos.",
+                peso: 4
+            };
+        }
+
+        function processarPacienteIA(e) {
+            e.preventDefault();
+
+            const nome = document.getElementById('p-nome').value;
+            const idade = parseInt(document.getElementById('p-idade').value);
+            const pa = document.getElementById('p-pa').value;
+            const spo2 = parseInt(document.getElementById('p-spo2').value);
+            const temp = parseFloat(document.getElementById('p-temp').value);
+            const sintomas = document.getElementById('p-sintomas').value;
+
+            const resultadoIA = analisarClinicamente(idade, pa, spo2, temp, sintomas);
+
+            const novoPaciente = {
+                id: Date.now(),
+                nome,
+                idade,
+                pa,
+                spo2,
+                temp,
+                sintomas,
+                cor: resultadoIA.cor,
+                prioridade: resultadoIA.prioridade,
+                slaMinutos: resultadoIA.slaMinutos,
+                hipotese: resultadoIA.hipotese,
+                conduta: resultadoIA.conduta,
+                entradaTimestamp: Date.now()
+            };
+
+            pacientes.push(novoPaciente);
+            ordenarERenderizarFila();
+
+            falarTexto(`Triagem concluída. Paciente ${nome}, classificado como ${resultadoIA.prioridade}. Hipótese: ${resultadoIA.hipotese}.`);
+
+            document.getElementById('triage-form').reset();
+        }
+
+        function atenderPaciente(id) {
+            pacientes = pacientes.filter(p => p.id !== id);
+            ordenarERenderizarFila();
+        }
+
+        function ordenarERenderizarFila() {
+            const pesos = { red: 1, orange: 2, yellow: 3, green: 4 };
+            pacientes.sort((a, b) => pesos[a.cor] - pesos[b.cor]);
+
+            const lista = document.getElementById('fila-pacientes');
+            lista.innerHTML = '';
+
+            if (pacientes.length === 0) {
+                lista.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">Nenhum paciente aguardando na fila no momento.</p>';
+                return;
+            }
+
+            pacientes.forEach(p => {
+                const segDecorridos = Math.floor((Date.now() - p.entradaTimestamp) / 1000);
+                const min = String(Math.floor(segDecorridos / 60)).padStart(2, '0');
+                const seg = String(segDecorridos % 60).padStart(2, '0');
+                
+                const estourouSLA = (segDecorridos / 60) > p.slaMinutos;
+
+                const card = document.createElement('div');
+                card.className = `patient-card ${p.cor} ${estourouSLA ? 'sla-breached' : ''}`;
+                card.innerHTML = `
+                    <div class="patient-header">
+                        <div class="patient-info">
+                            <h3>${p.nome} <span style="font-weight: normal; color: var(--text-muted); font-size: 0.9rem;">(${p.idade} anos)</span></h3>
+                            <span class="vitals-tag">PA: ${p.pa} mmHg • SpO2: ${p.spo2}% • Temp: ${p.temp}°C</span>
+                            <p style="font-size: 0.9rem; color: #e2e8f0;"><strong>Queixa:</strong> ${p.sintomas}</p>
+                        </div>
+                        <span class="badge ${p.cor}">${p.prioridade} (${p.slaMinutos} min)</span>
+                    </div>
+                    <div class="ai-diagnosis-box">
+                        <div><strong>🤖 Pré-Diagnóstico IA:</strong> ${p.hipotese}</div>
+                        <div style="margin-top: 4px; color: #cbd5e1;"><strong>📋 Conduta Sugerida:</strong> ${p.conduta}</div>
+                    </div>
+                    <div class="patient-footer">
+                        <div>
+                            Tempo em fila: <span class="timer-display">${min}:${seg}</span> 
+                            <span class="sla-warning"> • ⚠️ TEMPO LIMITE EXCEDIDO!</span>
+                        </div>
+                        <button class="btn-attend" onclick="atenderPaciente(${p.id})">✔ Iniciar Atendimento</button>
+                    </div>
+                `;
+                lista.appendChild(card);
+            });
+        }
+
+        setInterval(ordenarERenderizarFila, 1000);
+
+        function tocarBipeIA() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(660, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+                
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+            } catch (err) {
+                console.log("Áudio Web bloqueado antes da interação.");
+            }
+        }
+
+        function falarTexto(texto) {
+            const orbBox = document.getElementById('orb-box');
+            const waveBars = document.getElementById('waveform-bars');
+            const outputText = document.getElementById('voice-output-text');
+
+            if (outputText) outputText.innerText = texto;
+            tocarBipeIA();
+
+            if (orbBox) orbBox.classList.add('speaking');
+            if (waveBars) waveBars.classList.add('speaking');
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+
+                const fala = new SpeechSynthesisUtterance(texto);
+                fala.lang = 'pt-BR';
+                fala.rate = 1.02;
+                fala.pitch = 0.88;
+
+                const vozes = window.speechSynthesis.getVoices();
+                const vozBR = vozes.find(v => v.lang.includes('pt-BR') || v.lang.includes('pt_BR'));
+                if (vozBR) fala.voice = vozBR;
+
+                fala.onend = () => {
+                    if (orbBox) orbBox.classList.remove('speaking');
+                    if (waveBars) waveBars.classList.remove('speaking');
+                };
+
+                fala.onerror = () => {
+                    if (orbBox) orbBox.classList.remove('speaking');
+                    if (waveBars) waveBars.classList.remove('speaking');
+                };
+
+                window.speechSynthesis.speak(fala);
+            } else {
+                setTimeout(() => {
+                    if (orbBox) orbBox.classList.remove('speaking');
+                    if (waveBars) waveBars.classList.remove('speaking');
+                }, 4000);
+            }
+        }
+
+        function ativarVozInicial() {
+            falarTexto("Copiloto clínico MED.AI online. Pronto para auxiliar na investigação diagnóstica e triagem do Sistema Único de Saúde.");
+        }
+
+        function consultarProtocoloVoz(protocolo) {
+            const falas = {
+                iam: "Doutor, na suspeita de infarto agudo do miocárdio, pergunte ao paciente: A dor aperta ou queima? Ela irradia para o braço esquerdo, costas ou mandíbula? Há quanto tempo começou exatamente, e o paciente possui histórico de hipertensão ou diabetes?",
+                avc: "Para investigar acidente vascular cerebral, aplique a escala SAMU: Peça para o paciente sorrir para avaliar assimetria facial, peça para levantar os dois braços por dez segundos e pergunte o horário exato em que ele foi visto bem pela última vez.",
+                sepse: "Na suspeita de sepse, investigue foco infeccioso recente, redução do volume urinário nas últimas doze horas, confusão mental aguda e calafrios intensos. Recomendo lactato arterial e hemoculturas imediatas.",
+                dengue: "Para estratificação de dengue, pergunte sobre dor abdominal intensa e contínua, vômitos persistentes, sangramento de mucosas ou tontura ao levantar, que indicam extravasamento plasmático e risco de choque."
+            };
+            falarTexto(falas[protocolo]);
+        }
+
+        ordenarERenderizarFila();
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+        }
+    </script>
+</body>
+</html>
